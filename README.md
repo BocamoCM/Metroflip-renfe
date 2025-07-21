@@ -1,110 +1,157 @@
-# Metroflip
-Metroflip is a multi-protocol metro card reader app for the Flipper Zero, inspired by the Metrodroid project. It enables the parsing and analysis of metro cards from transit systems around the world, providing a proof-of-concept for exploring transit card data in a portable format. 
+# Metroflip Plugin: RENFE Suma 10
 
-# Author
-[@luu176](https://github.com/luu176)
+## Descripción general
 
-# Discord Community Server 
-
-Please join the server https://discord.gg/NR5hhbAXqS if you have any questions for me.
----
-
-![Menu-Top-Screenshot](screenshots/Menu-Top.png)
-
-# Setup Instructions
-
-## Using a pre-built release: Stable (Recommended) or Beta (Newer updates, less stable)
-1. Download the appropriate `metroflip.fap` file from the [Releases section](https://github.com/luu176/Metroflip/releases).
-2. Drag and drop the `metroflip.fap` file into the `apps` folder on your Flipper Zero's SD card.
-
-## Manual Build Instructions
-To build Metroflip manually, follow these steps:
-
-1. **Install Git**  
-   Download and install Git on your Windows computer.  
-   Run the first command to download the app:  
-
-**Either**:
-Stable Release (recommended): 
-```git clone https://github.com/luu176/Metroflip.git```
-
-**OR**:
-Beta (newer updates but not fully tested): 
-```git clone --single-branch --branch dev https://github.com/luu176/Metroflip.git```
-
-2. **Navigate to the Project Folder**  
-Run the second command to enter the app folder:  
-
-```cd Metroflip```
-
-3. **Install Python**  
-Download and install Python from the [official website](https://www.python.org).  
-
-4. **Install UFBT**  
-Run the third command to install UFBT:  
-
-```pip install ufbt```
-
-5. **Update and Build the Project**  
-Run the following commands in order to build the app:  
-
-```ufbt update```
-```ufbt fap_metroflip```
-
-6. **Connect Your Flipper Zero**  
-Ensure your Flipper Zero is connected via USB and close the QFlipper application (if it’s open).  
-
-7. **Launch the Build**  
-Run the final command to launch the app on your flipper:  
-
-```ufbt launch```
+Este módulo implementa el soporte para **lectura y análisis** de tarjetas **RENFE Suma 10** con Flipper Zero usando el sistema **Metroflip**.
 
 ---
 
-# Metroflip - Card Support TODO List
+## 📚 Estructura general
 
-This is a list of metro cards and transit systems that need support or have partial support.
-
-## ✅ Supported Cards
-
-| **Card / Agency**  | **City / Country**                           | **Card Type**     |
-|--------------------|----------------------------------------------|-------------------|
-| **Bip!**           | 🇨🇱 Santiago de Chile, Chile                  | MIFARE Classic    |
-| **Charliecard**    | 🇺🇸 Boston, MA, USA                           | MIFARE Classic    |
-| **Clipper**        | 🇺🇸 San Francisco, CA, USA                    | MIFARE DESFire    |
-| **ITSO**           | 🇬🇧 United Kingdom                            | MIFARE DESFire    |
-| **Metromoney**     | 🇬🇪 Tbilisi, Georgia                          | MIFARE Classic    |
-| **myki**           | 🇦🇺 Melbourne (and surrounds), VIC, Australia | MIFARE DESFire    |
-| **Navigo**         | 🇫🇷 Paris, France                             | Calypso           |
-| **Opal**           | 🇦🇺 Sydney (and surrounds), NSW, Australia    | MIFARE DESFire    |
-| **Opus**           | 🇨🇦 Montreal, QC, Canada                      | Calypso           |
-| **Rav-Kav**        | 🇮🇱 Israel                                    | Calypso           |
-| **RENFE**          | 🇪🇸 Spain                                      | MIFARE Classic   |
-| **SmartRider**     | 🇦🇺 Perth, WA, Australia                      | MIFARE Classic    |
-| **Suica**          | 🇯🇵 Japan                                     | FeliCa            |
-| **Troika**         | 🇷🇺 Moscow, Russia                            | MIFARE Classic    |
-
+- **Archivo principal:** `renfe_sum10.c`
+- **Protocolo NFC:** Mifare Classic 1K / 4K
+- **Claves:** Sectoriales específicas (`renfe_sum10_keys`) + alternativas (`renfe_sum10_alt_keys`)
+- **Escena principal:** `Metroflip:Scene:RenfeSum10`
 
 ---
 
-# Credits
-- **App Author:** [@luu176](https://github.com/luu176)
-- **Info Slaves:** [@equipter](https://github.com/equipter), [@TheDingo8MyBaby](https://github.com/thedingo8mybaby), [@ry4000](https://github.com/ry4000), [@WillyJL](https://github.com/WillyJL)
-- **Bip! Parser:** [@rbasoalto](https://github.com/rbasoalto), [@gornekich](https://github.com/gornekich)
-- **Charliecard Parser:** [@ZacharyWeiss](https://github.com/zacharyweiss)
-- **Clipper Parser:** [@ke6jjj](https://github.com/ke6jjj)
-- **ITSO Parser:** [@gsp8181](https://github.com/gsp8181), [@hedger](https://github.com/hedger), [@gornekich](https://github.com/gornekich)
-- **Metromoney Parser:** [@Leptopt1los](https://github.com/Leptopt1los)
-- **myki Parser:** [@gornekich](https://github.com/gornekich)
-- **Navigo Parser:** [@luu176](https://github.com/luu176), [@DocSystem](https://github.com/docsystem)
-- **Opal Parser:** [@gornekich](https://github.com/gornekich)
-- **Opus Parser:** [@DocSystem](https://github.com/docsystem)
-- **Rav-Kav Parser:** [@luu176](https://github.com/luu176)
-- **RENFE Parser:** [@BocamoCM](https://github.com/BocamoCM)
-- **Suica Parser:** [@ZinongLi](https://github.com/zinongli)
-- **Troika Parser:** [@gornekich](https://github.com/gornekich)
+## ⚙️ Flujo de trabajo
+
+1. **Detección NFC:** Se detecta la tarjeta usando `MfClassicPoller`
+2. **Autenticación:** Se intentan claves sectoriales en orden
+3. **Lectura:** Se leen bloques definidos (viajes, zona, configuración)
+4. **Parseo:** Los datos binarios se interpretan según patrones reales verificados
 
 ---
 
-### Special Thanks
-Huge thanks to [@equipter](https://github.com/equipter) & [@ry4000](https://github.com/ry4000) for helping out the community!
+## 🧩 Interpretación de datos
+
+A continuación se detalla **cómo se extrae e interpreta cada campo**:
+
+### 🆔 UID
+
+- **Fuente:** `iso14443_3a_data->uid`
+- **Formato:** Hexadecimal con bytes separados por espacios
+- **Propósito:** Identifica de forma única la tarjeta
+
+### 🎯 Zona tarifaria
+
+- **Bloque:** 5
+- **Bytes:** 5 y 6 (`block5[5] << 8 | block5[6]`)
+- **Función extractora:** `renfe_sum10_extract_zone_code`
+- **Interpretación:** `renfe_sum10_get_zone_name` mapea códigos a zonas
+  - Zonas principales: `A`, `B`, `C`
+  - Subzonas y líneas especiales
+  - Combinaciones tarifarias
+- **Ejemplo:** `0x6C16` → Zona `A`
+
+### 🏠 Estación de origen
+
+**Algoritmo de determinación:**
+1. Busca el **primer top-up (recarga)** con `transaction_type = 0x33` o `0x3A`
+2. Si no hay recarga, toma el primer viaje válido
+3. Extrae `station_code` de bytes 9–10
+4. Traduce usando `renfe_sum10_get_station_name_dynamic`
+
+**Bloques de búsqueda:** 18, 22, 28–30, 44–46
+
+### 📚 Historial de viajes
+
+**Bloques analizados:** `[4–14, 16–22, 28–30, 44–46]`
+
+**Criterios de validación** (`renfe_sum10_is_history_entry`):
+- `transaction_type` válido
+- `station_code` válido (no nulo ni patrón por defecto)
+- Timestamp válido (bytes 2–4 ≠ `0x00` o `0xFF`)
+
+**Procesamiento:**
+- Ordenamiento temporal (`renfe_sum10_sort_history_entries`)
+- Formato de salida: `N. [Tipo] - [Estación] [Timestamp] (Detalles)`
+
+### 📋 Tipos de transacción
+
+| Código | Descripción | Tipo |
+|--------|-------------|------|
+| `0x13` | Entrada | ENTRY |
+| `0x1A` | Salida | EXIT |
+| `0x1E` | Transbordo | TRANSFER |
+| `0x16` | Validación | VALIDATION |
+| `0x33` | Recarga | TOP-UP |
+| `0x3A` | Cargo adicional | CHARGE |
+| `0x17` | Inspección | INSPECTION |
+| `0x23` | Descuento | DISCOUNT |
+| `0x2A` | Sanción | PENALTY |
+| `0x2B` | Operación especial | SPECIAL |
+| Otros | Desconocido | Unknown |
+
+### 🔢 Viajes restantes
+
+- **Ubicación:** Bloque 5, Byte 4 (`block5[4]`)
+- **Condición:** `block5[0] == 0x01` y `block5[1–3] == 0x00`
+- **Formato de salida:** `🎫 Trips: [n]`
+
+---
+
+## 🗺️ Sistema de estaciones
+
+### Traducción de códigos
+
+Cada `station_code` se traduce usando archivos de mapeo locales ubicados en:
+
+```
+/ext/apps_assets/metroflip/renfe/stations/
+├── valencia.txt
+├── cercanias_valencia.txt
+├── metro_valencia.txt
+└── tranvia_valencia.txt
+```
+
+### Formato de archivo
+
+```
+0xCODE,Nombre de estación
+```
+
+**Ejemplos:**
+```
+0x6A12,València Nord
+0x6A13,Estació del Nord
+0x6A14,Xàtiva
+```
+
+### Sistema de caché
+
+- **Capacidad:** Máximo 150 estaciones en memoria (`StationCache`)
+- **Fallback:** Si no se encuentra el código → `Unknown`
+- **Carga dinámica:** Intenta múltiples archivos si `valencia.txt` no está disponible
+
+### Jerarquía de archivos
+
+1. `valencia.txt` (principal)
+2. `cercanias_valencia.txt` (fallback)
+3. `metro_valencia.txt` (fallback)
+4. `tranvia_valencia.txt` (fallback)
+
+---
+
+## 🔧 Funciones principales
+
+| Función | Propósito |
+|---------|-----------|
+| `renfe_sum10_extract_zone_code` | Extrae código de zona tarifaria |
+| `renfe_sum10_get_zone_name` | Mapea código a nombre de zona |
+| `renfe_sum10_get_origin_station` | Determina estación de origen |
+| `renfe_sum10_is_history_entry` | Valida entrada de historial |
+| `renfe_sum10_parse_travel_history` | Procesa historial completo |
+| `renfe_sum10_sort_history_entries` | Ordena entradas cronológicamente |
+| `renfe_sum10_get_station_name_dynamic` | Traduce códigos de estación |
+
+---
+
+## 📝 Notas técnicas
+
+- **Compatibilidad:** Mifare Classic 1K y 4K
+- **Autenticación:** Sistema de claves múltiples con fallback
+- **Robustez:** Validación estricta de datos para evitar falsos positivos
+- **Escalabilidad:** Sistema de caché optimizado para múltiples consultas
+- **Mantenimiento:** Archivos de estaciones actualizables independientemente del código
