@@ -33,8 +33,9 @@ Este módulo implementa el soporte para **lectura y análisis** de tarjetas **RE
 4. **Parseo:** Los datos binarios se interpretan según patrones reales verificados
 
 ---
+
 ![Renfe-Screenshot](screenshots/Suma10.png)
----
+
 
 
 ## 🧩 Interpretación de datos
