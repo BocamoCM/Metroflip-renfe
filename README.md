@@ -11,7 +11,7 @@ Metroflip is a multi-protocol metro card reader app for the Flipper Zero, inspir
 ## Descripción general
 
 
-[Renfe-Screenshot](screenshots/Suma10.png)
+![Renfe-Screenshot](screenshots/Suma10.png)
 Este módulo implementa el soporte para **lectura y análisis** de tarjetas **RENFE Suma 10** con Flipper Zero usando el sistema **Metroflip**.
 
 ---
