@@ -59,108 +59,80 @@ jobs:
           find ~/.ufbt/build/ -name "*.elf" 2>/dev/null || echo "No .elf files found in UFBT build"
           find . -name "*.elf" 2>/dev/null || echo "No .elf files found in current directory"
           
-      - name: Organize Build Artifacts
+     - name: Organizar Artefactos de Build
         run: |
-          echo "Organizing build artifacts..."
+          echo "Organizando artefactos de build..."
           mkdir -p build_output
           
-          # Track if we found any artifacts
-          artifacts_found=false
-          
-          # Copy the main FAP file from dist
+          # Copiar aplicación principal desde dist
           if [ -f "dist/metroflip.fap" ]; then
             cp dist/metroflip.fap build_output/
-            echo "✓ Copied metroflip.fap from dist/"
-            artifacts_found=true
+            echo "✓ Copiado metroflip.fap desde dist/"
           fi
           
-          # Copy debug ELF file from dist
+          # Copiar archivo debug desde dist
           if [ -f "dist/debug/metroflip_d.elf" ]; then
             cp dist/debug/metroflip_d.elf build_output/
-            echo "✓ Copied debug ELF from dist/debug/"
-            artifacts_found=true
+            echo "✓ Copiado metroflip_d.elf desde dist/debug/"
           fi
           
-          # Copy from UFBT build directory as backup
-          if [ -f ~/.ufbt/build/metroflip.fap ]; then
-            cp ~/.ufbt/build/metroflip.fap build_output/metroflip_ufbt.fap
-            echo "✓ Copied metroflip.fap from UFBT build/"
-            artifacts_found=true
+          # Copiar todos los plugins debug desde dist
+          if [ -d "dist/debug" ]; then
+            find dist/debug -name "*_plugin_d.elf" -exec cp {} build_output/ \;
+            plugin_debug_count=$(find dist/debug -name "*_plugin_d.elf" | wc -l)
+            echo "✓ Copiados $plugin_debug_count archivos debug de plugins"
           fi
           
-          # Copy debug ELF from UFBT build directory
-          if [ -f ~/.ufbt/build/metroflip_d.elf ]; then
-            cp ~/.ufbt/build/metroflip_d.elf build_output/metroflip_d_ufbt.elf
-            echo "✓ Copied debug ELF from UFBT build/"
-            artifacts_found=true
-          fi
-          
-          # Copy plugin FAL files
-          if [ -d ~/.ufbt/build/metroflip/assets/plugins/ ]; then
-            mkdir -p build_output/plugins
-            if ls ~/.ufbt/build/metroflip/assets/plugins/*.fal 1> /dev/null 2>&1; then
-              cp ~/.ufbt/build/metroflip/assets/plugins/*.fal build_output/plugins/
-              echo "✓ Copied $(ls ~/.ufbt/build/metroflip/assets/plugins/*.fal | wc -l) plugin FAL files"
-              artifacts_found=true
-            fi
-          fi
-          
-          # Copy any additional files from dist
+          # Copiar plugins FAL
           if [ -d "dist" ]; then
-            find dist -name "*.fap" -o -name "*.elf" -o -name "*.fal" | while read file; do
-              if [ ! -f "build_output/$(basename "$file")" ]; then
-                cp "$file" build_output/
-                echo "✓ Copied additional file: $(basename "$file")"
-                artifacts_found=true
-              fi
-            done
+            mkdir -p build_output/plugins
+            find dist -name "*.fal" -exec cp {} build_output/plugins/ \;
+            plugin_count=$(find dist -name "*.fal" | wc -l)
+            echo "✓ Copiados $plugin_count archivos de plugins (.fal)"
           fi
           
-          # Create build info
-          echo "Metroflip Build Information" > build_output/BUILD_INFO.txt
-          echo "===========================" >> build_output/BUILD_INFO.txt
-          echo "Build Date: $(date)" >> build_output/BUILD_INFO.txt
-          echo "Repository: Metroflip-renfe" >> build_output/BUILD_INFO.txt
+          # Crear información del build
+          echo "Metroflip RENFE - Información del Build" > build_output/BUILD_INFO.txt
+          echo "=====================================" >> build_output/BUILD_INFO.txt
+          echo "Fecha del Build: $(date)" >> build_output/BUILD_INFO.txt
+          echo "Repositorio: Metroflip-renfe" >> build_output/BUILD_INFO.txt
           echo "Target: 7, API: 86.0" >> build_output/BUILD_INFO.txt
-          echo "UFBT Version: $(pip show ufbt | grep Version || echo 'Unknown')" >> build_output/BUILD_INFO.txt
-          echo "Python Version: $(python3 --version)" >> build_output/BUILD_INFO.txt
+          echo "Commit: $GITHUB_SHA" >> build_output/BUILD_INFO.txt
           echo "" >> build_output/BUILD_INFO.txt
-          echo "Build Artifacts:" >> build_output/BUILD_INFO.txt
-          ls -la build_output/ >> build_output/BUILD_INFO.txt
-          echo "" >> build_output/BUILD_INFO.txt
-          echo "Supported Transit Systems:" >> build_output/BUILD_INFO.txt
+          echo "Sistemas de Transporte Soportados:" >> build_output/BUILD_INFO.txt
           echo "- BIP (Bay Area)" >> build_output/BUILD_INFO.txt
-          echo "- Calypso" >> build_output/BUILD_INFO.txt
-          echo "- CharlieCard (Boston)" >> build_output/BUILD_INFO.txt
-          echo "- Clipper (San Francisco)" >> build_output/BUILD_INFO.txt
-          echo "- Go Card (Brisbane)" >> build_output/BUILD_INFO.txt
-          echo "- ITSO (UK)" >> build_output/BUILD_INFO.txt
+          echo "- Calypso (Navigo, Opus, RavKav, Intercode)" >> build_output/BUILD_INFO.txt
+          echo "- CharlieCard (Boston MBTA)" >> build_output/BUILD_INFO.txt
+          echo "- Clipper (San Francisco Bay Area)" >> build_output/BUILD_INFO.txt
+          echo "- Go Card (Brisbane, Australia)" >> build_output/BUILD_INFO.txt
+          echo "- ITSO (Reino Unido)" >> build_output/BUILD_INFO.txt
           echo "- MetroMoney" >> build_output/BUILD_INFO.txt
-          echo "- Myki (Melbourne)" >> build_output/BUILD_INFO.txt
-          echo "- Opal (Sydney)" >> build_output/BUILD_INFO.txt
-          echo "- RENFE (Spain)" >> build_output/BUILD_INFO.txt
-          echo "- SmartRider (Perth)" >> build_output/BUILD_INFO.txt
-          echo "- Suica (Japan)" >> build_output/BUILD_INFO.txt
-          echo "- Troika (Moscow)" >> build_output/BUILD_INFO.txt
+          echo "- Myki (Melbourne, Australia)" >> build_output/BUILD_INFO.txt
+          echo "- Opal (Sydney, Australia)" >> build_output/BUILD_INFO.txt
+          echo "- RENFE (España) ⭐" >> build_output/BUILD_INFO.txt
+          echo "- SmartRider (Perth, Australia)" >> build_output/BUILD_INFO.txt
+          echo "- Suica (Japón)" >> build_output/BUILD_INFO.txt
+          echo "- Troika (Moscú, Rusia)" >> build_output/BUILD_INFO.txt
+          echo "" >> build_output/BUILD_INFO.txt
+          echo "Archivos del Build:" >> build_output/BUILD_INFO.txt
+          ls -la build_output/ >> build_output/BUILD_INFO.txt
           
-          if [ "$artifacts_found" = true ]; then
+          echo ""
+          echo "=== Artefactos finales del build ==="
+          ls -la build_output/
+          if [ -d build_output/plugins ]; then
             echo ""
-            echo "=== Final build artifacts ==="
-            ls -la build_output/
-            echo ""
-            echo "SUCCESS: Build artifacts collected successfully!"
-          else
-            echo "WARNING: No build artifacts found"
-            echo "Creating debug info..."
-            
-            echo "=== Debug Information ===" >> build_output/DEBUG_INFO.txt
-            echo "Current directory:" >> build_output/DEBUG_INFO.txt
-            pwd >> build_output/DEBUG_INFO.txt
-            echo "Directory contents:" >> build_output/DEBUG_INFO.txt
-            ls -la >> build_output/DEBUG_INFO.txt
-            echo "UFBT directory contents:" >> build_output/DEBUG_INFO.txt
-            ls -la ~/.ufbt >> build_output/DEBUG_INFO.txt 2>&1 || echo "Cannot access ~/.ufbt" >> build_output/DEBUG_INFO.txt
+            echo "=== Plugins ==="
+            ls -la build_output/plugins/
           fi
+          
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: metroflip-renfe-build
+          path: build_output/
+          if-no-files-found: error
+          retention-days: 30
           
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
