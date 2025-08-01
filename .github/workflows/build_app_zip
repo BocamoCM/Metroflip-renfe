@@ -40,49 +40,30 @@ jobs:
           set -ex
           ufbt faps
 
-      - name: Debug Show Build Output
-        run: |
-          echo "=== Current directory contents ==="
-          ls -la
-          echo ""
-          echo "=== Looking for all build-related directories ==="
-          find . -type d -name "*build*" 2>/dev/null || echo "No build directories found"
-          echo ""
-          echo "=== Looking for dist directories ==="
-          find . -type d -name "*dist*" 2>/dev/null || echo "No dist directories found"
-          echo ""
-          echo "=== All generated files (excluding git) ==="
-          find . -type f ! -path "./.git/*" ! -name ".git*" -newer . 2>/dev/null || echo "No recently generated files found"
-          echo ""
-          echo "=== Directory tree ==="
-          tree -a -L 3 2>/dev/null || find . -type d | head -20
-
       - name: Zip Build Output
         run: |
           echo "Creating build archive..."
           mkdir -p archive_temp
 
-          # Copy generated FAPs
+          # Copy .fap files
           find . -name "*.fap" -exec cp {} archive_temp/ \;
 
-          # Copy .elf files if available
+          # Copy .elf files
           find . -name "*.elf" -exec cp {} archive_temp/ \;
 
-          # Add build info for context
+          # Add build info
           echo "Build info generated at $(date)" > archive_temp/README.txt
-          echo "" >> archive_temp/README.txt
           ufbt --version >> archive_temp/README.txt
 
+          # Create zip
           zip -r build-output.zip archive_temp/
           rm -rf archive_temp
 
-   - name: Upload Build ZIP Artifact
-     uses: actions/upload-artifact@v4
-     with:
-      name: build-output
-      path: build-output.zip
-      if-no-files-found: error
-      compression-level: 6
-      overwrite: true
-
-
+      - name: Upload Build ZIP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build-output.zip
+          if-no-files-found: error
+          compression-level: 6
+          overwrite: true
