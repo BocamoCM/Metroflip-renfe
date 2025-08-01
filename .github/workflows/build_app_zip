@@ -1,4 +1,4 @@
-ame: "UFBT Build and Test App"
+name: "UFBT Build and Test App"
 
 on:
   push:
@@ -48,70 +48,79 @@ jobs:
           echo "=== Looking for dist directories ==="
           find . -type d -name "*dist*" 2>/dev/null || echo "No dist directories found"
           echo ""
+          echo "=== Looking for .fap files ==="
+          find . -name "*.fap" 2>/dev/null || echo "No .fap files found"
+          echo ""
           echo "=== All generated files (excluding git) ==="
-          find . -type f ! -path "./.git/*" ! -name ".git*" -newer . 2>/dev/null || echo "No recently generated files found"
+          find . -type f ! -path "./.git/*" ! -name ".gitignore" -newer . 2>/dev/null || echo "No recently generated files found"
           echo ""
           echo "=== Directory tree ==="
           tree -a -L 3 2>/dev/null || find . -type d | head -20
           
-      - name: Zip Build Output
+      - name: Create Build Archive
         run: |
           echo "Creating comprehensive build archive..."
           
           # Create a temporary directory to organize files
-          mkdir -p archive_temp
+          mkdir -p build_artifacts
           
-          # Copy .fap files
+          # Flag to track if we found any artifacts
+          found_artifacts=false
+          
+          # Copy .fap files (main Flipper app files)
           if find . -name "*.fap" -print -quit | grep -q .; then
             echo "Found .fap files, copying..."
-            find . -name "*.fap" -exec cp {} archive_temp/ \;
+            find . -name "*.fap" -exec cp {} build_artifacts/ \;
+            found_artifacts=true
           fi
           
           # Copy build directories if they exist
           if find . -type d -name "*build*" -print -quit | grep -q .; then
             echo "Found build directories, copying..."
-            find . -type d -name "*build*" -exec cp -r {} archive_temp/ \;
+            find . -type d -name "*build*" -exec cp -r {} build_artifacts/ \;
+            found_artifacts=true
           fi
           
           # Copy dist directories if they exist
           if find . -type d -name "*dist*" -print -quit | grep -q .; then
             echo "Found dist directories, copying..."
-            find . -type d -name "*dist*" -exec cp -r {} archive_temp/ \;
+            find . -type d -name "*dist*" -exec cp -r {} build_artifacts/ \;
+            found_artifacts=true
           fi
           
-          # Copy any other common build artifacts
+          # Copy other common build artifacts
           for pattern in "*.elf" "*.bin" "*.hex" "*.map" "*.lst"; do
             if find . -name "$pattern" -print -quit | grep -q .; then
               echo "Found $pattern files, copying..."
-              find . -name "$pattern" -exec cp {} archive_temp/ \;
+              find . -name "$pattern" -exec cp {} build_artifacts/ \;
+              found_artifacts=true
             fi
           done
           
           # Copy compile_commands.json if exists
           if [ -f "compile_commands.json" ]; then
-            cp compile_commands.json archive_temp/
+            echo "Found compile_commands.json, copying..."
+            cp compile_commands.json build_artifacts/
+            found_artifacts=true
           fi
           
           # Check if we have anything to archive
-          if [ "$(ls -A archive_temp)" ]; then
-            echo "Archive contents:"
-            ls -la archive_temp/
-            zip -r build-output.zip archive_temp/
-            echo "Build output archived successfully"
+          if [ "$found_artifacts" = true ] && [ "$(ls -A build_artifacts)" ]; then
+            echo "=== Archive contents ==="
+            ls -la build_artifacts/
+            echo "Build artifacts found and archived successfully"
           else
-            echo "No build artifacts found to archive"
-            # Create a minimal archive with project info
-            echo "Project structure at build time:" > archive_temp/build_info.txt
-            find . -type f ! -path "./.git/*" >> archive_temp/build_info.txt
-            zip -r build-output.zip archive_temp/
+            echo "No build artifacts found, creating info file..."
+            echo "Build completed at: $(date)" > build_artifacts/build_info.txt
+            echo "Project structure:" >> build_artifacts/build_info.txt
+            find . -type f ! -path "./.git/*" -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" >> build_artifacts/build_info.txt
+            echo "UFBT output:" >> build_artifacts/build_info.txt
+            ufbt --help >> build_artifacts/build_info.txt 2>&1 || echo "UFBT help not available" >> build_artifacts/build_info.txt
           fi
           
-          # Cleanup
-          rm -rf archive_temp
-          
-      - name: Upload Build ZIP Artifact
-        if: success() && hashFiles('build-output.zip') != ''
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: compiled-build
-          path: build-output.zip
+          name: flipper-build-artifacts
+          path: build_artifacts/
+          if-no-files-found: warn
