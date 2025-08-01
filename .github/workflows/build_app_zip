@@ -42,20 +42,22 @@ jobs:
           echo "=== Current directory contents ==="
           ls -la
           echo ""
-          echo "=== Looking for all build-related directories ==="
-          find . -type d -name "*build*" 2>/dev/null || echo "No build directories found"
+          echo "=== UFBT build directory contents ==="
+          ls -la ~/.ufbt/build/ 2>/dev/null || echo "UFBT build directory not found"
           echo ""
-          echo "=== Looking for dist directories ==="
-          find . -type d -name "*dist*" 2>/dev/null || echo "No dist directories found"
+          echo "=== Local dist directory contents ==="
+          ls -la dist/ 2>/dev/null || echo "Local dist directory not found"
+          echo ""
+          echo "=== Looking for .fal files (compiled Flipper apps) ==="
+          find ~/.ufbt/build/ -name "*.fal" 2>/dev/null || echo "No .fal files found in UFBT build"
+          find . -name "*.fal" 2>/dev/null || echo "No .fal files found in current directory"
           echo ""
           echo "=== Looking for .fap files ==="
           find . -name "*.fap" 2>/dev/null || echo "No .fap files found"
           echo ""
-          echo "=== All generated files (excluding git) ==="
-          find . -type f ! -path "./.git/*" ! -name ".gitignore" -newer . 2>/dev/null || echo "No recently generated files found"
-          echo ""
-          echo "=== Directory tree ==="
-          tree -a -L 3 2>/dev/null || find . -type d | head -20
+          echo "=== Looking for .elf files ==="
+          find ~/.ufbt/build/ -name "*.elf" 2>/dev/null || echo "No .elf files found in UFBT build"
+          find . -name "*.elf" 2>/dev/null || echo "No .elf files found in current directory"
           
       - name: Create Build Archive
         run: |
@@ -67,40 +69,38 @@ jobs:
           # Flag to track if we found any artifacts
           found_artifacts=false
           
-          # Copy .fap files (main Flipper app files)
+          # Copy .fal files from UFBT build directory (these are the actual compiled apps)
+          if find ~/.ufbt/build/ -name "*.fal" 2>/dev/null | grep -q .; then
+            echo "Found .fal files in UFBT build directory, copying..."
+            find ~/.ufbt/build/ -name "*.fal" -exec cp {} build_artifacts/ \;
+            found_artifacts=true
+          fi
+          
+          # Copy .elf files from UFBT build directory
+          if find ~/.ufbt/build/ -name "*.elf" 2>/dev/null | grep -q .; then
+            echo "Found .elf files in UFBT build directory, copying..."
+            find ~/.ufbt/build/ -name "*.elf" -exec cp {} build_artifacts/ \;
+            found_artifacts=true
+          fi
+          
+          # Copy files from local dist directory
+          if [ -d "dist" ]; then
+            echo "Found local dist directory, copying..."
+            cp -r dist/* build_artifacts/ 2>/dev/null || echo "No files in dist directory"
+            found_artifacts=true
+          fi
+          
+          # Copy any .fap files from current directory (alternative location)
           if find . -name "*.fap" -print -quit | grep -q .; then
-            echo "Found .fap files, copying..."
+            echo "Found .fap files in current directory, copying..."
             find . -name "*.fap" -exec cp {} build_artifacts/ \;
             found_artifacts=true
           fi
           
-          # Copy build directories if they exist
-          if find . -type d -name "*build*" -print -quit | grep -q .; then
-            echo "Found build directories, copying..."
-            find . -type d -name "*build*" -exec cp -r {} build_artifacts/ \;
-            found_artifacts=true
-          fi
-          
-          # Copy dist directories if they exist
-          if find . -type d -name "*dist*" -print -quit | grep -q .; then
-            echo "Found dist directories, copying..."
-            find . -type d -name "*dist*" -exec cp -r {} build_artifacts/ \;
-            found_artifacts=true
-          fi
-          
-          # Copy other common build artifacts
-          for pattern in "*.elf" "*.bin" "*.hex" "*.map" "*.lst"; do
-            if find . -name "$pattern" -print -quit | grep -q .; then
-              echo "Found $pattern files, copying..."
-              find . -name "$pattern" -exec cp {} build_artifacts/ \;
-              found_artifacts=true
-            fi
-          done
-          
-          # Copy compile_commands.json if exists
-          if [ -f "compile_commands.json" ]; then
-            echo "Found compile_commands.json, copying..."
-            cp compile_commands.json build_artifacts/
+          # Copy any .fal files from current directory (alternative location)
+          if find . -name "*.fal" -print -quit | grep -q .; then
+            echo "Found .fal files in current directory, copying..."
+            find . -name "*.fal" -exec cp {} build_artifacts/ \;
             found_artifacts=true
           fi
           
@@ -112,10 +112,10 @@ jobs:
           else
             echo "No build artifacts found, creating info file..."
             echo "Build completed at: $(date)" > build_artifacts/build_info.txt
-            echo "Project structure:" >> build_artifacts/build_info.txt
-            find . -type f ! -path "./.git/*" -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" >> build_artifacts/build_info.txt
-            echo "UFBT output:" >> build_artifacts/build_info.txt
-            ufbt --help >> build_artifacts/build_info.txt 2>&1 || echo "UFBT help not available" >> build_artifacts/build_info.txt
+            echo "UFBT build directory contents:" >> build_artifacts/build_info.txt
+            ls -la ~/.ufbt/build/ >> build_artifacts/build_info.txt 2>&1 || echo "Cannot access UFBT build directory" >> build_artifacts/build_info.txt
+            echo "Local dist directory contents:" >> build_artifacts/build_info.txt
+            ls -la dist/ >> build_artifacts/build_info.txt 2>&1 || echo "No local dist directory" >> build_artifacts/build_info.txt
           fi
           
       - name: Upload Build Artifacts
