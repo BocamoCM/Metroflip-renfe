@@ -1,1 +1,117 @@
+ame: "UFBT Build and Test App"
 
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          
+      - name: Install UFBT
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install ufbt
+          
+      - name: Initialize UFBT Environment
+        run: |
+          ufbt update --index-url=https://update.flipperzero.one/firmware/directory.json --channel=release
+          ufbt vscode_dist
+          
+      - name: Build FAP Applications
+        run: |
+          set -e
+          ufbt faps
+          
+      - name: Debug Show Build Output
+        run: |
+          echo "=== Current directory contents ==="
+          ls -la
+          echo ""
+          echo "=== Looking for all build-related directories ==="
+          find . -type d -name "*build*" 2>/dev/null || echo "No build directories found"
+          echo ""
+          echo "=== Looking for dist directories ==="
+          find . -type d -name "*dist*" 2>/dev/null || echo "No dist directories found"
+          echo ""
+          echo "=== All generated files (excluding git) ==="
+          find . -type f ! -path "./.git/*" ! -name ".git*" -newer . 2>/dev/null || echo "No recently generated files found"
+          echo ""
+          echo "=== Directory tree ==="
+          tree -a -L 3 2>/dev/null || find . -type d | head -20
+          
+      - name: Zip Build Output
+        run: |
+          echo "Creating comprehensive build archive..."
+          
+          # Create a temporary directory to organize files
+          mkdir -p archive_temp
+          
+          # Copy .fap files
+          if find . -name "*.fap" -print -quit | grep -q .; then
+            echo "Found .fap files, copying..."
+            find . -name "*.fap" -exec cp {} archive_temp/ \;
+          fi
+          
+          # Copy build directories if they exist
+          if find . -type d -name "*build*" -print -quit | grep -q .; then
+            echo "Found build directories, copying..."
+            find . -type d -name "*build*" -exec cp -r {} archive_temp/ \;
+          fi
+          
+          # Copy dist directories if they exist
+          if find . -type d -name "*dist*" -print -quit | grep -q .; then
+            echo "Found dist directories, copying..."
+            find . -type d -name "*dist*" -exec cp -r {} archive_temp/ \;
+          fi
+          
+          # Copy any other common build artifacts
+          for pattern in "*.elf" "*.bin" "*.hex" "*.map" "*.lst"; do
+            if find . -name "$pattern" -print -quit | grep -q .; then
+              echo "Found $pattern files, copying..."
+              find . -name "$pattern" -exec cp {} archive_temp/ \;
+            fi
+          done
+          
+          # Copy compile_commands.json if exists
+          if [ -f "compile_commands.json" ]; then
+            cp compile_commands.json archive_temp/
+          fi
+          
+          # Check if we have anything to archive
+          if [ "$(ls -A archive_temp)" ]; then
+            echo "Archive contents:"
+            ls -la archive_temp/
+            zip -r build-output.zip archive_temp/
+            echo "Build output archived successfully"
+          else
+            echo "No build artifacts found to archive"
+            # Create a minimal archive with project info
+            echo "Project structure at build time:" > archive_temp/build_info.txt
+            find . -type f ! -path "./.git/*" >> archive_temp/build_info.txt
+            zip -r build-output.zip archive_temp/
+          fi
+          
+          # Cleanup
+          rm -rf archive_temp
+          
+      - name: Upload Build ZIP Artifact
+        if: success() && hashFiles('build-output.zip') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-build
+          path: build-output.zip
