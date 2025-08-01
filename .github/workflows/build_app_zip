@@ -3,10 +3,10 @@ name: "UFBT Build and Test App"
 on:
   push:
     branches:
-      - main
+      - RENFE
   pull_request:
     branches:
-      - main
+      - RENFE
   workflow_dispatch:
 
 jobs:
@@ -122,5 +122,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flipper-build-artifacts
-          path: build_artifacts/
+          path: |
+            **/*.fap
+            **/build*/
+            **/dist*/
+            **/*.elf
+            **/*.bin
+            build_artifacts/
           if-no-files-found: warn
