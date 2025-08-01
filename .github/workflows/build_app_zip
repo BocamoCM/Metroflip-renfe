@@ -76,8 +76,9 @@ jobs:
           zip -r build-output.zip archive_temp/
           rm -rf archive_temp
 
-      - name: Upload Build ZIP Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-build
-          path: build-output.zip
+     - name: Upload Build ZIP Artifact
+       uses: actions/upload-artifact@v4
+       with:
+        name: build-output
+        path: build-output.zip
+
