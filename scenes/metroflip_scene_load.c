@@ -33,7 +33,10 @@ void metroflip_scene_load_on_enter(void* context) {
 
         do {
             if(!flipper_format_file_open_existing(format, furi_string_get_cstr(file_path))) break;
-            if(!flipper_format_read_string(format, "Device Type", device_type)) break;
+            if(!flipper_format_read_string(format, "Device Type", device_type)) {
+                // Try to assume it's a Mifare Classic card and proceed
+                furi_string_set_str(device_type, "Mifare Classic");
+            }
 
             const char* protocol_name = furi_string_get_cstr(device_type);
 
@@ -44,7 +47,10 @@ void metroflip_scene_load_on_enter(void* context) {
 
                 if(strcmp(protocol_name, "Mifare Classic") == 0) {
                     MfClassicData* mfc_data = mf_classic_alloc();
-                    if(!mf_classic_load(mfc_data, format, 2)) break;
+                    if(!mf_classic_load(mfc_data, format, 2)) {
+                        mf_classic_free(mfc_data);
+                        break;
+                    }
 
                     CardType card_type = determine_card_type(app->nfc, mfc_data, true);
                     app->mfc_card_type = card_type;
@@ -58,36 +64,34 @@ void metroflip_scene_load_on_enter(void* context) {
                         break;
                     case CARD_TYPE_CHARLIECARD:
                         app->card_type = "charliecard";
-                        FURI_LOG_I(TAG, "Detected: CharlieCard");
                         break;
                     case CARD_TYPE_SMARTRIDER:
                         app->card_type = "smartrider";
-                        FURI_LOG_I(TAG, "Detected: SmartRider");
                         break;
                     case CARD_TYPE_TROIKA:
                         app->card_type = "troika";
-                        FURI_LOG_I(TAG, "Detected: Troika");
                         break;
                     case CARD_TYPE_RENFE_SUM10:
                         app->card_type = "renfe_sum10";
-                        FURI_LOG_I(TAG, "Detected: RENFE Suma 10");
                         break;
                     case CARD_TYPE_GOCARD:
                         app->card_type = "gocard";
-                        FURI_LOG_I(TAG, "Detected: GoCard");
                         break;
                     case CARD_TYPE_UNKNOWN:
                     default:
                         app->card_type = "unknown";
-                        FURI_LOG_I(TAG, "Detected: Unknown Card");
                         break;
                     }
 
-                    mf_classic_free(mfc_data);
+                    // Store the loaded MFC data in the app for plugins to use
+                    app->mfc_data = mfc_data;
 
                 } else if(strcmp(protocol_name, "Mifare DESFire") == 0) {
                     MfDesfireData* data = mf_desfire_alloc();
-                    if(!mf_desfire_load(data, format, 2)) break;
+                    if(!mf_desfire_load(data, format, 2)) {
+                        mf_desfire_free(data);
+                        break;
+                    }
 
                     app->is_desfire = true;
                     app->data_loaded = true;
@@ -99,19 +103,36 @@ void metroflip_scene_load_on_enter(void* context) {
 
             } else {
                 const char* card_str = furi_string_get_cstr(card_type_str);
+                
                 if(strcmp(card_str, "Japan Rail IC") == 0) {
                     app->card_type = "suica";
                     app->is_desfire = false;
                     app->data_loaded = true;
-                    FURI_LOG_I(TAG, "Detected: Suica / Japan Rail IC");
                     load_suica_data(app, format);
                 } else if(strcmp(card_str, "calypso") == 0) {
                     app->card_type = "calypso";
                     app->is_desfire = false;
                     app->data_loaded = true;
-                    FURI_LOG_I(TAG, "Detected: Calypso");
+                } else if(strcmp(card_str, "renfe_sum10") == 0) {
+                    // For RENFE cards, we need to load the MFC data and set it up properly
+                    flipper_format_file_close(format);
+                    flipper_format_file_open_existing(format, furi_string_get_cstr(file_path));
+                    
+                    MfClassicData* mfc_data = mf_classic_alloc();
+                    if(!mf_classic_load(mfc_data, format, 2)) {
+                        mf_classic_free(mfc_data);
+                        break;
+                    }
+                    
+                    app->card_type = "renfe_sum10";
+                    app->mfc_card_type = CARD_TYPE_RENFE_SUM10;
+                    app->mfc_data = mfc_data;
+                    app->data_loaded = true;
+                    app->is_desfire = false;
+                } else {
+                    app->card_type = "unknown";
+                    app->data_loaded = false;
                 }
-                FURI_LOG_E(TAG, "Card Type Unrecognized: %s", card_str);
             }
 
             // Set file path
@@ -130,9 +151,14 @@ void metroflip_scene_load_on_enter(void* context) {
 
     // Scene transitions
     if(app->data_loaded) {
+        FURI_LOG_I(TAG, "Data loaded successfully, transitioning to parse scene");
+        FURI_LOG_I(TAG, "Card type: %s, MFC data: %s", 
+                   app->card_type ? app->card_type : "NULL",
+                   app->mfc_data ? "exists" : "NULL");
         scene_manager_search_and_switch_to_previous_scene(app->scene_manager, MetroflipSceneStart);
         scene_manager_next_scene(app->scene_manager, MetroflipSceneParse);
     } else {
+        FURI_LOG_I(TAG, "Data loading failed, returning to start");
         scene_manager_search_and_switch_to_previous_scene(app->scene_manager, MetroflipSceneStart);
     }
 
