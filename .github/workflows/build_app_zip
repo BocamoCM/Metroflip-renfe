@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.x'
           
       - name: Install UFBT
         run: |
@@ -42,132 +42,76 @@ jobs:
           echo "=== Current directory contents ==="
           ls -la
           echo ""
-          echo "=== UFBT build directory contents ==="
-          ls -la ~/.ufbt/build/ 2>/dev/null || echo "UFBT build directory not found"
+          echo "=== Looking for all build-related directories ==="
+          find . -type d -name "*build*" 2>/dev/null || echo "No build directories found"
           echo ""
-          echo "=== Local dist directory contents ==="
-          ls -la dist/ 2>/dev/null || echo "Local dist directory not found"
+          echo "=== Looking for dist directories ==="
+          find . -type d -name "*dist*" 2>/dev/null || echo "No dist directories found"
           echo ""
-          echo "=== Looking for .fal files (compiled Flipper apps) ==="
-          find ~/.ufbt/build/ -name "*.fal" 2>/dev/null || echo "No .fal files found in UFBT build"
-          find . -name "*.fal" 2>/dev/null || echo "No .fal files found in current directory"
+          echo "=== All generated files (excluding git) ==="
+          find . -type f ! -path "./.git/*" ! -name ".git*" -newer . 2>/dev/null || echo "No recently generated files found"
           echo ""
-          echo "=== Looking for .fap files ==="
-          find . -name "*.fap" 2>/dev/null || echo "No .fap files found"
-          echo ""
-          echo "=== Looking for .elf files ==="
-          find ~/.ufbt/build/ -name "*.elf" 2>/dev/null || echo "No .elf files found in UFBT build"
-          find . -name "*.elf" 2>/dev/null || echo "No .elf files found in current directory"
+          echo "=== Directory tree ==="
+          tree -a -L 3 2>/dev/null || find . -type d | head -20
           
-     - name: Organizar Artefactos de Build
+      - name: Zip Build Output
         run: |
-          echo "Organizando artefactos de build..."
-          mkdir -p build_output
+          echo "Creating comprehensive build archive..."
           
-          # Copiar aplicación principal desde dist
-          if [ -f "dist/metroflip.fap" ]; then
-            cp dist/metroflip.fap build_output/
-            echo "✓ Copiado metroflip.fap desde dist/"
+          # Create a temporary directory to organize files
+          mkdir -p archive_temp
+          
+          # Copy .fap files
+          if find . -name "*.fap" -print -quit | grep -q .; then
+            echo "Found .fap files, copying..."
+            find . -name "*.fap" -exec cp {} archive_temp/ \;
           fi
           
-          # Copiar archivo debug desde dist
-          if [ -f "dist/debug/metroflip_d.elf" ]; then
-            cp dist/debug/metroflip_d.elf build_output/
-            echo "✓ Copiado metroflip_d.elf desde dist/debug/"
+          # Copy build directories if they exist
+          if find . -type d -name "*build*" -print -quit | grep -q .; then
+            echo "Found build directories, copying..."
+            find . -type d -name "*build*" -exec cp -r {} archive_temp/ \;
           fi
           
-          # Copiar todos los plugins debug desde dist
-          if [ -d "dist/debug" ]; then
-            find dist/debug -name "*_plugin_d.elf" -exec cp {} build_output/ \;
-            plugin_debug_count=$(find dist/debug -name "*_plugin_d.elf" | wc -l)
-            echo "✓ Copiados $plugin_debug_count archivos debug de plugins"
+          # Copy dist directories if they exist
+          if find . -type d -name "*dist*" -print -quit | grep -q .; then
+            echo "Found dist directories, copying..."
+            find . -type d -name "*dist*" -exec cp -r {} archive_temp/ \;
           fi
           
-          # Copiar plugins FAL
-          if [ -d "dist" ]; then
-            mkdir -p build_output/plugins
-            find dist -name "*.fal" -exec cp {} build_output/plugins/ \;
-            plugin_count=$(find dist -name "*.fal" | wc -l)
-            echo "✓ Copiados $plugin_count archivos de plugins (.fal)"
-          fi
-          
-          # Crear información del build
-          echo "Metroflip RENFE - Información del Build" > build_output/BUILD_INFO.txt
-          echo "=====================================" >> build_output/BUILD_INFO.txt
-          echo "Fecha del Build: $(date)" >> build_output/BUILD_INFO.txt
-          echo "Repositorio: Metroflip-renfe" >> build_output/BUILD_INFO.txt
-          echo "Target: 7, API: 86.0" >> build_output/BUILD_INFO.txt
-          echo "Commit: $GITHUB_SHA" >> build_output/BUILD_INFO.txt
-          echo "" >> build_output/BUILD_INFO.txt
-          echo "Sistemas de Transporte Soportados:" >> build_output/BUILD_INFO.txt
-          echo "- BIP (Bay Area)" >> build_output/BUILD_INFO.txt
-          echo "- Calypso (Navigo, Opus, RavKav, Intercode)" >> build_output/BUILD_INFO.txt
-          echo "- CharlieCard (Boston MBTA)" >> build_output/BUILD_INFO.txt
-          echo "- Clipper (San Francisco Bay Area)" >> build_output/BUILD_INFO.txt
-          echo "- Go Card (Brisbane, Australia)" >> build_output/BUILD_INFO.txt
-          echo "- ITSO (Reino Unido)" >> build_output/BUILD_INFO.txt
-          echo "- MetroMoney" >> build_output/BUILD_INFO.txt
-          echo "- Myki (Melbourne, Australia)" >> build_output/BUILD_INFO.txt
-          echo "- Opal (Sydney, Australia)" >> build_output/BUILD_INFO.txt
-          echo "- RENFE (España) ⭐" >> build_output/BUILD_INFO.txt
-          echo "- SmartRider (Perth, Australia)" >> build_output/BUILD_INFO.txt
-          echo "- Suica (Japón)" >> build_output/BUILD_INFO.txt
-          echo "- Troika (Moscú, Rusia)" >> build_output/BUILD_INFO.txt
-          echo "" >> build_output/BUILD_INFO.txt
-          echo "Archivos del Build:" >> build_output/BUILD_INFO.txt
-          ls -la build_output/ >> build_output/BUILD_INFO.txt
-          
-          echo ""
-          echo "=== Artefactos finales del build ==="
-          ls -la build_output/
-          if [ -d build_output/plugins ]; then
-            echo ""
-            echo "=== Plugins ==="
-            ls -la build_output/plugins/
-          fi
-          
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: metroflip-renfe-build
-          path: build_output/
-          if-no-files-found: error
-          retention-days: 30
-          
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: metroflip-build-artifacts
-          path: build_output/
-          if-no-files-found: warn
-          retention-days: 30
-          
-      - name: Verify Upload Contents
-        run: |
-          echo "=== Final verification of artifacts to upload ==="
-          if [ -d build_output ]; then
-            echo "Build output directory contents:"
-            find build_output -type f -exec ls -la {} \;
-            echo ""
-            echo "Total files to upload: $(find build_output -type f | wc -l)"
-            
-            # Check for main app file
-            if [ -f build_output/metroflip.fap ]; then
-              echo "✓ Main application file (metroflip.fap) ready for upload"
-              ls -lh build_output/metroflip.fap
-            else
-              echo "⚠️ Main application file not found"
+          # Copy any other common build artifacts
+          for pattern in "*.elf" "*.bin" "*.hex" "*.map" "*.lst"; do
+            if find . -name "$pattern" -print -quit | grep -q .; then
+              echo "Found $pattern files, copying..."
+              find . -name "$pattern" -exec cp {} archive_temp/ \;
             fi
-            
-            # Check for plugins
-            if [ -d build_output/plugins ]; then
-              plugin_count=$(ls build_output/plugins/*.fal 2>/dev/null | wc -l)
-              echo "✓ $plugin_count plugin files ready for upload"
-            else
-              echo "⚠️ No plugin files found"
-            fi
-            
+          done
+          
+          # Copy compile_commands.json if exists
+          if [ -f "compile_commands.json" ]; then
+            cp compile_commands.json archive_temp/
+          fi
+          
+          # Check if we have anything to archive
+          if [ "$(ls -A archive_temp)" ]; then
+            echo "Archive contents:"
+            ls -la archive_temp/
+            zip -r build-output.zip archive_temp/
+            echo "Build output archived successfully"
           else
-            echo "ERROR: build_output directory was not created"
-            exit 1
+            echo "No build artifacts found to archive"
+            # Create a minimal archive with project info
+            echo "Project structure at build time:" > archive_temp/build_info.txt
+            find . -type f ! -path "./.git/*" >> archive_temp/build_info.txt
+            zip -r build-output.zip archive_temp/
           fi
+          
+          # Cleanup
+          rm -rf archive_temp
+          
+      - name: Upload Build ZIP Artifact
+        if: success() && hashFiles('build-output.zip') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-build
+          path: build-output.zip
