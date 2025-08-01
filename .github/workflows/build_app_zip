@@ -22,10 +22,13 @@ jobs:
         with:
           python-version: '3.x'
           
-      - name: Install UFBT
+      - name: Install Latest UFBT
         run: |
-          python3 -m pip install --upgrade pip
-          pip install ufbt
+            python3 -m pip install --upgrade pip
+            pip install --upgrade ufbt
+            echo "Installed UFBT version:"
+            ufbt --version
+
           
       - name: Initialize UFBT Environment
         run: |
