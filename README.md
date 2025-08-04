@@ -72,7 +72,7 @@ El plugin RENFE Regular soporta **18 regiones españolas**:
 - 🎯 **Clasificación de zonas** (A, B, C, D, E, F, 1-6, L1, L2, B1)
 - 🏠 **Identificación de estación origen** (Valencia + nacional)
 - 🔢 **Contador de viajes** (X/10 para tarjetas Bono Regular)
-- 👤 **Extracción de nombre del titular** (MOBILIS 30 desde Bloque 9)
+- 👤 **Extracción completa de nombre del titular** (MOBILIS 30: nombre + ambos apellidos con normalización de acentos)
 
 ### Historial de Viajes Completo
 - 📚 **Análisis completo del historial** con ordenamiento cronológico
@@ -152,7 +152,7 @@ log debug
 
 #### Detección de Variantes de Tarjeta
 - **SUMA 10**: Tarjetas estándar de pago por viaje
-- **MOBILIS 30**: Abonos mensuales con detección de patrón
+- **MOBILIS 30**: Abonos mensuales con detección de patrón "CARRERES MOMP"
 
 #### Puntos de Extracción de Datos
 
@@ -169,9 +169,11 @@ log debug
 - **Ejemplo:** `0x6C16` → Zona `A`
 
 **👤 Nombre del Titular (MOBILIS 30)**
-- **Bloque:** 9 (primeros 6 bytes)
-- **Validación:** Caracteres ASCII imprimibles (0x20-0x7E)
-- **Ejemplo:** "BORJA" extraído de dump real de tarjeta
+- **Bloques:** 9 (nombre) y 14 (apellidos)
+- **Procesamiento:** Extracción multi-bloque con normalización de acentos
+- **Formato:** "NOMBRE APELLIDO1 APELLIDO2"
+- **Soporte de Acentos:** Conversión automática (á→A, é→E, í→I, ó→O, ú→U, ñ→N, ü→U)
+- **Ejemplo:** Entrada "José" → Salida "JOSE", Entrada "Rodríguez" → Salida "RODRIGUEZ"
 
 **🏠 Estación de Origen**
 - **Algoritmo:** Encuentra primera transacción de recarga (`0x33` o `0x3A`)
@@ -311,7 +313,8 @@ log debug
 
 ### Tipos de Tarjetas Probadas
 - ✅ **Valencia SUMA 10** - Pago por viaje con historial
-- ✅ **Valencia MOBILIS 30** - Abono mensual con extracción nombre "BORJA"
+- ✅ **Valencia MOBILIS 30** - Abono mensual con extracción completa de nombre (nombre + ambos apellidos)
+- ✅ **Normalización de acentos españoles** - Todos los diacríticos convertidos correctamente (á→A, ñ→N, etc.)
 - ✅ **Bono Regular 10 viajes** - Región Alzira con contador viajes
 - ✅ **RENFE multi-regional** - Tarjetas por toda España
 
@@ -322,6 +325,7 @@ log debug
 - 🎯 **Análisis confiable historial** con ordenamiento timestamps
 
 ### Validación de Patrones
+- ✅ **Patrón "CARRERES MOMP"** para MOBILIS 30 confirmado
 - ✅ **Patrón "E8 03 04"** para Bono Regular validado
 - ✅ **Detección zona multi-bloque** para MOBILIS 30 funcionando
 
@@ -346,6 +350,7 @@ log debug
 
 ### Detección Zona MOBILIS 30
 - 🔧 **Algoritmo mejorado implementado** - Análisis multi-bloque para zonas precisas
+- ✅ **Extracción nombre funcionando** - Patrón "CARRERES MOMP" validado
 - 🎯 **Visualización zona mejorada** - Usa Bloques 12, 10, 1 para detección
 
 ### Cobertura Base Datos Estaciones
@@ -385,7 +390,7 @@ Add '0x0012,Station_Name' to valencia.txt
 - 🔄 **Actualizaciones automáticas** para códigos de estaciones
 - 📊 **Análisis estadístico** de patrones de viaje
 - 🌍 **Expansión internacional** a otros sistemas de transporte europeos
-**2**
+
 ---
 
 ## 🤝 Contribuciones de la Comunidad
