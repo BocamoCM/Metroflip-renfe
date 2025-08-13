@@ -64,7 +64,7 @@ El plugin RENFE Regular soporta **18 regiones españolas**:
 
 ### Detección Avanzada de Tarjetas
 - ✅ **Reconocimiento automático de variantes** (SUMA/MOBILIS/Bono)
-- ✅ **Validación basada en patrones** ("CARRERES MOMP" para MOBILIS 30, "E8 03 04" para Bono Regular)
+- ✅ **Validación basada en patrones** (para MOBILIS 30, para Bono Regular)
 - ✅ **Auto-detección multi-regional** basada en patrones de datos de tarjeta
 
 ### Extracción Inteligente de Datos
