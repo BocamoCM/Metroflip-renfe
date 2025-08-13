@@ -152,7 +152,7 @@ log debug
 
 #### Detección de Variantes de Tarjeta
 - **SUMA 10**: Tarjetas estándar de pago por viaje
-- **MOBILIS 30**: Abonos mensuales con detección de patrón "CARRERES MOMP"
+- **MOBILIS 30**: Abonos mensuales con detección de patrón 
 
 #### Puntos de Extracción de Datos
 
@@ -325,7 +325,7 @@ log debug
 - 🎯 **Análisis confiable historial** con ordenamiento timestamps
 
 ### Validación de Patrones
-- ✅ **Patrón "CARRERES MOMP"** para MOBILIS 30 confirmado
+- ✅ **Patrón ** para MOBILIS 30 confirmado
 - ✅ **Patrón "E8 03 04"** para Bono Regular validado
 - ✅ **Detección zona multi-bloque** para MOBILIS 30 funcionando
 
@@ -350,7 +350,7 @@ log debug
 
 ### Detección Zona MOBILIS 30
 - 🔧 **Algoritmo mejorado implementado** - Análisis multi-bloque para zonas precisas
-- ✅ **Extracción nombre funcionando** - Patrón "CARRERES MOMP" validado
+- ✅ **Extracción nombre funcionando** - validado
 - 🎯 **Visualización zona mejorada** - Usa Bloques 12, 10, 1 para detección
 
 ### Cobertura Base Datos Estaciones
