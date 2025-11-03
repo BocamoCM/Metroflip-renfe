@@ -283,23 +283,20 @@ KeyfileManager manage_keyfiles(
     uint64_t key_mask_b_required) {
     Storage* storage = furi_record_open(RECORD_STORAGE);
     File* source = storage_file_alloc(storage);
+    File* dest = storage_file_alloc(storage);
     char source_path[64];
+    char dest_path[64];
     UNUSED(key_mask_b_required);
 
     FURI_LOG_I("TAG", "%s", uid_str);
-    size_t source_required_size =
-        strlen("/ext/nfc/.cache/") + strlen(uid_str) + strlen(".keys") + 1;
-    snprintf(source_path, source_required_size, "/ext/nfc/.cache/%s.keys", uid_str);
+    
+    // Build paths efficiently
+    snprintf(source_path, sizeof(source_path), "/ext/nfc/.cache/%s.keys", uid_str);
+    snprintf(dest_path, sizeof(dest_path), "/ext/nfc/assets/.%s.keys", uid_str);
+    
     bool cache_file = storage_file_open(source, source_path, FSAM_READ, FSOM_OPEN_EXISTING);
-
-    /*-----------------Open assets cache file (if exists)------------*/
-
-    File* dest = storage_file_alloc(storage);
-    char dest_path[64];
-    size_t dest_required_size =
-        strlen("/ext/nfc/assets/.") + strlen(uid_str) + strlen(".keys") + 1;
-    snprintf(dest_path, dest_required_size, "/ext/nfc/assets/.%s.keys", uid_str);
     bool dest_cache_file = storage_file_open(dest, dest_path, FSAM_READ, FSOM_OPEN_EXISTING);
+    
     /*-----------------Check cache file------------*/
     if(!cache_file) {
         /*-----------------Check assets cache file------------*/
@@ -309,6 +306,9 @@ KeyfileManager manage_keyfiles(
             FURI_LOG_I("TAG", "assets dont exist, prompting user to fix..");
             storage_file_close(source);
             storage_file_close(dest);
+            storage_file_free(source);
+            storage_file_free(dest);
+            furi_record_close(RECORD_STORAGE);
             return MISSING_KEYFILE;
         } else {
             size_t dest_file_length = storage_file_size(dest);
@@ -323,13 +323,27 @@ KeyfileManager manage_keyfiles(
             storage_file_open(
                 dest, dest_path, FSAM_READ, FSOM_OPEN_EXISTING); // open existing assets keyfile
             FURI_LOG_I("TAG", "creating cache file at %s from %s", source_path, dest_path);
-            /*-----Clone keyfile from assets to cache (creates temporary buffer)----*/
+            
+            /*-----Clone keyfile from assets to cache (with error checking)----*/
             uint8_t* cloned_buffer = malloc(dest_file_length);
+            if(!cloned_buffer) {
+                FURI_LOG_E("TAG", "Failed to allocate memory for keyfile copy");
+                storage_file_close(source);
+                storage_file_close(dest);
+                storage_file_free(source);
+                storage_file_free(dest);
+                furi_record_close(RECORD_STORAGE);
+                return MISSING_KEYFILE;
+            }
+            
             storage_file_read(dest, cloned_buffer, dest_file_length);
             storage_file_write(source, cloned_buffer, dest_file_length);
             free(cloned_buffer);
             storage_file_close(source);
             storage_file_close(dest);
+            storage_file_free(source);
+            storage_file_free(dest);
+            furi_record_close(RECORD_STORAGE);
             return SUCCESSFUL;
         }
     } else {
@@ -342,29 +356,42 @@ KeyfileManager manage_keyfiles(
            KEY_MASK_BIT_CHECK(key_mask_b_required, instance->keys.key_b_mask)) {
             FURI_LOG_I("TAG", "cache exist, creating assets cache if not already exists");
             storage_file_close(dest);
-            storage_file_close(source);
             storage_file_open(dest, dest_path, FSAM_WRITE, FSOM_OPEN_ALWAYS);
             storage_file_open(source, source_path, FSAM_READ, FSOM_OPEN_EXISTING);
             FURI_LOG_I("TAG", "creating assets cache");
-            /*-----Clone keyfile from assets to cache (creates temporary buffer)----*/
+            
+            /*-----Clone keyfile from cache to assets (with error checking)----*/
             uint8_t* cloned_buffer = malloc(source_file_length);
+            if(!cloned_buffer) {
+                FURI_LOG_E("TAG", "Failed to allocate memory for keyfile copy");
+                storage_file_close(source);
+                storage_file_close(dest);
+                storage_file_free(source);
+                storage_file_free(dest);
+                furi_record_close(RECORD_STORAGE);
+                return INCOMPLETE_KEYFILE;
+            }
+            
             storage_file_read(source, cloned_buffer, source_file_length);
             storage_file_write(dest, cloned_buffer, source_file_length);
             free(cloned_buffer);
             storage_file_close(source);
             storage_file_close(dest);
+            storage_file_free(source);
+            storage_file_free(dest);
+            furi_record_close(RECORD_STORAGE);
             return SUCCESSFUL;
 
         } else {
             FURI_LOG_I("TAG", "incomplete cache file, aborting.");
             storage_file_close(source);
             storage_file_close(dest);
+            storage_file_free(source);
+            storage_file_free(dest);
+            furi_record_close(RECORD_STORAGE);
             return INCOMPLETE_KEYFILE;
         }
     }
-    FURI_LOG_I("TAG", "proceeding to read");
-    storage_file_close(source);
-    storage_file_close(dest);
 }
 
 void uid_to_string(const uint8_t* uid, size_t uid_len, char* uid_str, size_t max_len) {
