@@ -365,30 +365,33 @@ static uint32_t renfe_sum10_extract_timestamp(const uint8_t* block_data) {
     
     return timestamp;
 }
-// Sort history entries manually (newest first)
+// Comparison function for sorting history entries (newest first)
+static int renfe_sum10_compare_entries(const void* a, const void* b) {
+    const HistoryEntry* entry_a = (const HistoryEntry*)a;
+    const HistoryEntry* entry_b = (const HistoryEntry*)b;
+    
+    // Sort by timestamp descending (newest first)
+    if(entry_a->timestamp > entry_b->timestamp) {
+        return -1;
+    } else if(entry_a->timestamp < entry_b->timestamp) {
+        return 1;
+    }
+    
+    // If timestamps are equal, sort by block number descending
+    if(entry_a->block_number > entry_b->block_number) {
+        return -1;
+    } else if(entry_a->block_number < entry_b->block_number) {
+        return 1;
+    }
+    
+    return 0;
+}
+
+// Sort history entries using qsort (O(n log n) instead of O(n²))
 static void renfe_sum10_sort_history_entries(HistoryEntry* entries, int count) {
     if(!entries || count <= 1) return;
     
-    for(int i = 0; i < count - 1; i++) {
-        for(int j = 0; j < count - 1 - i; j++) {
-            bool should_swap = false;
-            
-            if(entries[j].timestamp < entries[j + 1].timestamp) {
-                should_swap = true;
-            } else if(entries[j].timestamp == entries[j + 1].timestamp) {
-                if(entries[j].block_number < entries[j + 1].block_number) {
-                    should_swap = true;
-                }
-            }
-            
-            if(should_swap) {
-                // Swap entries
-                HistoryEntry temp = entries[j];
-                entries[j] = entries[j + 1];
-                entries[j + 1] = temp;
-            }
-        }
-    }
+    qsort(entries, count, sizeof(HistoryEntry), renfe_sum10_compare_entries);
 }
 
 // Clear the station cache
@@ -433,26 +436,34 @@ static bool renfe_sum10_load_station_file(const char* region) {
     
     bool success = false;
     if(storage_file_open(file, furi_string_get_cstr(file_path), FSAM_READ, FSOM_OPEN_EXISTING)) {
+        // Use buffered reading for better performance
+        #define READ_BUFFER_SIZE 512
+        char read_buffer[READ_BUFFER_SIZE];
+        size_t buffer_pos = 0;
+        size_t buffer_filled = 0;
         char line_buffer[64];
         station_cache->count = 0;
         
-        // Read file line by line using simple character reading
+        // Read file line by line using buffered I/O
         while(station_cache->count < MAX_CACHED_STATIONS) {
             size_t line_pos = 0;
             bool end_of_file = false;
             
-            // Read line character by character
+            // Read line using buffered I/O
             while(line_pos < sizeof(line_buffer) - 1) {
-                char c;
-                size_t bytes_read = storage_file_read(file, &c, 1);
-                if(bytes_read == 0) {
-                    // End of file
-                    end_of_file = true;
-                    break;
+                // Refill buffer if needed
+                if(buffer_pos >= buffer_filled) {
+                    buffer_filled = storage_file_read(file, read_buffer, READ_BUFFER_SIZE);
+                    buffer_pos = 0;
+                    if(buffer_filled == 0) {
+                        end_of_file = true;
+                        break;
+                    }
                 }
                 
+                char c = read_buffer[buffer_pos++];
+                
                 if(c == '\n') {
-                    // End of line
                     break;
                 }
                 
@@ -512,12 +523,13 @@ static bool renfe_sum10_load_station_file(const char* region) {
     return success;
 }
 
-// Get station name from cache
+// Get station name from cache (optimized with early exit)
 static const char* renfe_sum10_get_station_name_from_cache(uint16_t station_code) {
-    if(!station_cache || !station_cache->loaded) {
+    if(!station_cache || !station_cache->loaded || station_cache->count == 0) {
         return "Unknown";
     }
     
+    // Linear search with early exit - cache is small (< 50 items)
     for(size_t i = 0; i < station_cache->count; i++) {
         if(station_cache->stations[i].code == station_code) {
             return station_cache->stations[i].name;
@@ -802,12 +814,11 @@ static void renfe_sum10_parse_travel_history(FuriString* parsed_data, const MfCl
     for(int i = 0; i < num_blocks; i++) {
         int block = history_blocks[i];
         
-        // Check if block number is within valid range for this card type
+        // Early exit checks - most efficient first
         if(block >= max_blocks) {
             continue;
         }
         
-        // Check if block was actually read
         if(!mf_classic_is_block_read(data, block)) {
             continue;
         }
@@ -950,12 +961,11 @@ static bool renfe_sum10_has_history_data(const MfClassicData* data) {
     for(int i = 0; i < num_blocks; i++) {
         int block = history_blocks[i];
         
-        // Check if block number is within valid range for this card type
+        // Early exit checks
         if(block >= max_blocks) {
             continue;
         }
         
-        // Check if block was actually read
         if(!mf_classic_is_block_read(data, block)) {
             continue;
         }
@@ -970,6 +980,7 @@ static bool renfe_sum10_has_history_data(const MfClassicData* data) {
             valid_entries_found++;
             
             // Require at least 1 valid entry, but be more strict about what counts as valid
+            // Early exit when threshold met
             if(valid_entries_found >= 1) {
                 return true;
             }
