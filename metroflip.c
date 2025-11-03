@@ -201,10 +201,10 @@ void byte_to_binary(uint8_t byte, char* bits) {
 
 int binary_to_decimal(const char binary[]) {
     int decimal = 0;
-    int length = strlen(binary);
-
-    for(int i = 0; i < length; i++) {
-        decimal = decimal * 2 + (binary[i] - '0');
+    
+    // Iterate until null terminator (avoids strlen call)
+    for(int i = 0; binary[i] != '\0'; i++) {
+        decimal = (decimal << 1) | (binary[i] - '0'); // Use bit shift instead of multiply
     }
 
     return decimal;
