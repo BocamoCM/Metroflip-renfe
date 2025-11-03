@@ -18,6 +18,8 @@
 #include "../../metroflip_plugins.h"
 
 #define TAG "Metroflip:Scene:RenfeSum10"
+#define READ_BUFFER_SIZE 512  // Buffer size for optimized file reading
+
 typedef struct {
     uint8_t block_data[16];  
     uint32_t timestamp;     
@@ -437,7 +439,6 @@ static bool renfe_sum10_load_station_file(const char* region) {
     bool success = false;
     if(storage_file_open(file, furi_string_get_cstr(file_path), FSAM_READ, FSOM_OPEN_EXISTING)) {
         // Use buffered reading for better performance
-        #define READ_BUFFER_SIZE 512
         char read_buffer[READ_BUFFER_SIZE];
         size_t buffer_pos = 0;
         size_t buffer_filled = 0;

@@ -203,7 +203,12 @@ int binary_to_decimal(const char binary[]) {
     int decimal = 0;
     
     // Iterate until null terminator (avoids strlen call)
+    // Validate input: only accept '0' and '1' characters
     for(int i = 0; binary[i] != '\0'; i++) {
+        if(binary[i] != '0' && binary[i] != '1') {
+            // Invalid character found, return current result
+            break;
+        }
         decimal = (decimal << 1) | (binary[i] - '0'); // Use bit shift instead of multiply
     }
 
